@@ -2,11 +2,13 @@ package pcontext
 
 import (
 	"context"
+	"log"
 	"sync"
 	"sync/atomic"
 )
 
-type PContext interface {
+type Context interface {
+	context.Context
 	Progress() <-chan ProgressData
 	SetProgress(total, current int64)
 }
@@ -28,19 +30,18 @@ func init() {
 	close(closedchan)
 }
 
-func (pc *pContext) createProgressCh() (chan ProgressData, bool) {
-	pc.mu.Lock()
-	defer pc.mu.Unlock()
+func (pctx *pContext) createProgressCh() (chan ProgressData, bool) {
+	pctx.mu.Lock()
+	defer pctx.mu.Unlock()
 
 	select {
 	// Work done.
-	case <-pc.Done():
-		p, _ := pc.progress.Load().(chan ProgressData)
+	case <-pctx.Done():
+		log.Printf("pctx.Done()")
+		p, _ := pctx.progress.Load().(chan ProgressData)
 		if p == nil {
 			p = closedchan
-			pc.progress.Store(p)
-		} else {
-			close(p)
+			pctx.progress.Store(p)
 		}
 
 		return p, true
@@ -49,33 +50,51 @@ func (pc *pContext) createProgressCh() (chan ProgressData, bool) {
 	}
 
 	// Work goroutine is running.
-	p, _ := pc.progress.Load().(chan ProgressData)
+	p, _ := pctx.progress.Load().(chan ProgressData)
 	if p == nil {
 		p = make(chan ProgressData)
-		pc.progress.Store(p)
+		pctx.progress.Store(p)
 	}
 
 	return p, false
 }
 
-func (pc *pContext) Progress() <-chan ProgressData {
-	p, _ := pc.createProgressCh()
+func (pctx *pContext) Progress() <-chan ProgressData {
+	p, _ := pctx.createProgressCh()
 	return p
 }
 
-func (pc *pContext) SetProgress(total, current int64) {
+func (pctx *pContext) SetProgress(total, current int64) {
 	if total <= 0 || current < 0 {
 		return
 	}
 
-	p, closed := pc.createProgressCh()
+	p, closed := pctx.createProgressCh()
 	if !closed {
 		p <- ProgressData{total, current}
 	}
 }
 
-/*
-func WithProgress(ctx context.Context) PContext {
-	return &pContext{context.Context: ctx, mu: sync.Mutex{}, progress: atomic.Value{}}
+func WithProgress(ctx context.Context) Context {
+	pctx := &pContext{Context: ctx}
+
+	go func() {
+		for {
+			select {
+			case <-pctx.Done():
+				pctx.mu.Lock()
+				p, _ := pctx.progress.Load().(chan ProgressData)
+				if p == nil {
+					p = closedchan
+					pctx.progress.Store(p)
+				} else {
+					close(p)
+				}
+				pctx.mu.Unlock()
+				return
+			}
+		}
+	}()
+
+	return pctx
 }
-*/

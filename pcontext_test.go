@@ -9,7 +9,9 @@ import (
 )
 
 func Example() {
-	ctx, _ := context.WithTimeout(context.Background(), time.Millisecond*1000)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*1000)
+	defer cancel()
+
 	pctx := pcontext.WithProgress(ctx)
 
 	go func(pctx pcontext.Context) {

@@ -79,8 +79,7 @@ func WithProgress(ctx context.Context) Context {
 				pctx.done = true
 				p, _ := pctx.progress.Load().(chan ProgressData)
 				if p == nil {
-					p = closedchan
-					pctx.progress.Store(p)
+					pctx.progress.Store(closedchan)
 				} else {
 					close(p)
 				}

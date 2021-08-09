@@ -2,7 +2,7 @@ package pcontext
 
 import (
 	"context"
-	"log"
+	//"log"
 	"sync"
 	"sync/atomic"
 )
@@ -22,6 +22,7 @@ type pContext struct {
 	context.Context
 	mu       sync.Mutex
 	progress atomic.Value
+	done     bool
 }
 
 var closedchan = make(chan ProgressData)
@@ -30,38 +31,25 @@ func init() {
 	close(closedchan)
 }
 
-func (pctx *pContext) createProgressCh() (chan ProgressData, bool) {
-	pctx.mu.Lock()
-	defer pctx.mu.Unlock()
-
-	select {
-	// Work done.
-	case <-pctx.Done():
-		log.Printf("pctx.Done()")
-		p, _ := pctx.progress.Load().(chan ProgressData)
-		if p == nil {
-			p = closedchan
-			pctx.progress.Store(p)
-		}
-
-		return p, true
-
-	default:
+func (pctx *pContext) createProgressCh() chan ProgressData {
+	p := pctx.progress.Load()
+	if p != nil {
+		return p.(chan ProgressData)
 	}
 
-	// Work goroutine is running.
-	p, _ := pctx.progress.Load().(chan ProgressData)
+	pctx.mu.Lock()
+	defer pctx.mu.Unlock()
+	p = pctx.progress.Load()
 	if p == nil {
 		p = make(chan ProgressData)
 		pctx.progress.Store(p)
 	}
 
-	return p, false
+	return p.(chan ProgressData)
 }
 
 func (pctx *pContext) Progress() <-chan ProgressData {
-	p, _ := pctx.createProgressCh()
-	return p
+	return pctx.createProgressCh()
 }
 
 func (pctx *pContext) SetProgress(total, current int64) {
@@ -69,10 +57,15 @@ func (pctx *pContext) SetProgress(total, current int64) {
 		return
 	}
 
-	p, closed := pctx.createProgressCh()
-	if !closed {
-		p <- ProgressData{total, current}
+	pctx.mu.Lock()
+	if pctx.done {
+		pctx.mu.Unlock()
+		return // already canceled
 	}
+
+	p := pctx.createProgressCh()
+	p <- ProgressData{total, current}
+	pctx.mu.Unlock()
 }
 
 func WithProgress(ctx context.Context) Context {
@@ -83,6 +76,7 @@ func WithProgress(ctx context.Context) Context {
 			select {
 			case <-pctx.Done():
 				pctx.mu.Lock()
+				pctx.done = true
 				p, _ := pctx.progress.Load().(chan ProgressData)
 				if p == nil {
 					p = closedchan

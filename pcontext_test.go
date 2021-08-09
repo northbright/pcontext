@@ -22,19 +22,13 @@ func Example() {
 		log.Printf("work goroutine exited")
 	}(pctx)
 
-	for {
-		select {
-		//case <-pctx.Done():
-		//	log.Printf("timeout")
-		case pd, ok := <-pctx.Progress():
-			if ok {
-				log.Printf("progress: total: %v, current: %v", pd.Total, pd.Current)
-			} else {
-				log.Printf("task is done")
-				return
-			}
-		}
+	for pd := range pctx.Progress() {
+		log.Printf("progress: total: %v, current: %v", pd.Total, pd.Current)
 	}
+
+	// The channel will be closed and for range loop will exit
+	// when the context is done.
+	log.Printf("task is done")
 
 	// Output:
 }

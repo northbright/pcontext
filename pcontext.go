@@ -1,36 +1,47 @@
+// Package pcontext derives from context.Context, carries a progress.
 package pcontext
 
 import (
 	"context"
-	//"log"
 	"sync"
 	"sync/atomic"
 )
 
+// Context derives from context.Context, carries a progress.
+// Work goroutines set the progress while other goroutines
+// receive the progress data from the progress channel.
 type Context interface {
+	// Derive context.Context.
 	context.Context
+	// Progress returns the channel to receive progress data.
 	Progress() <-chan ProgressData
+	// SetProgress sets the progress in work goroutines.
 	SetProgress(total, current int64)
 }
 
+// ProgressData contains the progress data.
 type ProgressData struct {
 	Total   int64
 	Current int64
 }
 
+// pContext implements the Context interface.
 type pContext struct {
+	// Derived context.Context interface
 	context.Context
 	mu       sync.Mutex
 	progress atomic.Value
 	done     bool
 }
 
+// closedchan is a reusable closed channel.
 var closedchan = make(chan ProgressData)
 
 func init() {
 	close(closedchan)
 }
 
+// ComputePercent computes the progress percent.
 func ComputePercent(total, current int64) float32 {
 	if total > 0 {
 		return float32(float64(current) / (float64(total) / float64(100)))
@@ -38,6 +49,8 @@ func ComputePercent(total, current int64) float32 {
 	return 0
 }
 
+// createProgressCh creates the progress channel dynamically.
+// It'll create the channel the first createProgressCh is called.
 func (pctx *pContext) createProgressCh() chan ProgressData {
 	p := pctx.progress.Load()
 	if p != nil {
@@ -55,10 +68,12 @@ func (pctx *pContext) createProgressCh() chan ProgressData {
 	return p.(chan ProgressData)
 }
 
+// Progress returns the channel to receive progress data.
 func (pctx *pContext) Progress() <-chan ProgressData {
 	return pctx.createProgressCh()
 }
 
+// SetProgress sets the progress in work goroutines.
 func (pctx *pContext) SetProgress(total, current int64) {
 	if total <= 0 || current < 0 {
 		return
@@ -75,6 +90,7 @@ func (pctx *pContext) SetProgress(total, current int64) {
 	pctx.mu.Unlock()
 }
 
+// WithProgress returns a copy of parent with progress supported context.
 func WithProgress(ctx context.Context) Context {
 	pctx := &pContext{Context: ctx}
 

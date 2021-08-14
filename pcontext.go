@@ -95,19 +95,16 @@ func WithProgress(ctx context.Context) Context {
 	pctx := &pContext{Context: ctx}
 
 	go func() {
-		select {
-		case <-pctx.Done():
-			pctx.mu.Lock()
-			pctx.done = true
-			p, _ := pctx.progress.Load().(chan ProgressData)
-			if p == nil {
-				pctx.progress.Store(closedchan)
-			} else {
-				close(p)
-			}
-			pctx.mu.Unlock()
-			return
+		<-pctx.Done()
+		pctx.mu.Lock()
+		pctx.done = true
+		p, _ := pctx.progress.Load().(chan ProgressData)
+		if p == nil {
+			pctx.progress.Store(closedchan)
+		} else {
+			close(p)
 		}
+		pctx.mu.Unlock()
 	}()
 
 	return pctx

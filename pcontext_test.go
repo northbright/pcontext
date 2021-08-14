@@ -23,7 +23,8 @@ func Example() {
 	}(pctx)
 
 	for pd := range pctx.Progress() {
-		log.Printf("progress: total: %v, current: %v", pd.Total, pd.Current)
+		percent := pcontext.ComputePercent(pd.Total, pd.Current)
+		log.Printf("progress: total: %v, current: %v, percent: %v", pd.Total, pd.Current, percent)
 	}
 
 	// The channel will be closed and for range loop will exit

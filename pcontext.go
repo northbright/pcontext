@@ -31,6 +31,13 @@ func init() {
 	close(closedchan)
 }
 
+func ComputePercent(total, current int64) float32 {
+	if total > 0 {
+		return float32(float64(current) / (float64(total) / float64(100)))
+	}
+	return 0
+}
+
 func (pctx *pContext) createProgressCh() chan ProgressData {
 	p := pctx.progress.Load()
 	if p != nil {

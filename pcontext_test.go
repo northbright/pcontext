@@ -28,7 +28,7 @@ func Example() {
 	// Read progress data until the channel is closed.
 	for pd := range pctx.Progress() {
 		percent := pcontext.ComputePercent(pd.Total, pd.Current)
-		log.Printf("progress: total: %v, current: %v, percent: %v", pd.Total, pd.Current, percent)
+		log.Printf("progress: total: %v, current: %v, percent: %v%%", pd.Total, pd.Current, percent)
 	}
 
 	// The channel will be closed and for range loop will exit

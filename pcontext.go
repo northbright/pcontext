@@ -84,10 +84,10 @@ func (pctx *pContext) SetProgress(total, current int64) {
 		pctx.mu.Unlock()
 		return // already canceled
 	}
+	pctx.mu.Unlock()
 
 	p := pctx.createProgressCh()
 	p <- ProgressData{total, current}
-	pctx.mu.Unlock()
 }
 
 // WithProgress returns a copy of parent with progress supported context.

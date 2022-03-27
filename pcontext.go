@@ -1,4 +1,5 @@
-// Package pcontext derives from context.Context, carries a progress.
+// Package pcontext provides a new context which derived from context.Context.
+// It supports new feature(s): set / get progress.
 package pcontext
 
 import (

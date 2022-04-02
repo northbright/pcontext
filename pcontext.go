@@ -14,8 +14,6 @@ import (
 type Context interface {
 	// Derive context.Context.
 	context.Context
-	// Progress returns the channel to receive progress data.
-	Progress() <-chan ProgressData
 	// SetProgress sets the progress in work goroutines.
 	SetProgress(total, current int64)
 }
@@ -91,8 +89,9 @@ func (pctx *pContext) SetProgress(total, current int64) {
 	p <- ProgressData{total, current}
 }
 
-// WithProgress returns a copy of parent with progress supported context.
-func WithProgress(ctx context.Context) Context {
+// WithProgress returns a copy of parent and a channel to receive progress data.
+// The progress channel will be closed when work done.
+func WithProgress(ctx context.Context) (Context, <-chan ProgressData) {
 	pctx := &pContext{Context: ctx}
 
 	go func() {
@@ -108,5 +107,5 @@ func WithProgress(ctx context.Context) Context {
 		pctx.mu.Unlock()
 	}()
 
-	return pctx
+	return pctx, pctx.createProgressCh()
 }

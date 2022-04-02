@@ -12,8 +12,8 @@ func Example() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*1000)
 	defer cancel()
 
-	// Creates a progress context from parent.
-	pctx := pcontext.WithProgress(ctx)
+	// Creates a progress context from parent and a channel to receive progress data.
+	pctx, ch := pcontext.WithProgress(ctx)
 
 	// Run a work goroutine.
 	go func(pctx pcontext.Context) {
@@ -26,7 +26,7 @@ func Example() {
 	}(pctx)
 
 	// Read progress data until the channel is closed.
-	for pd := range pctx.Progress() {
+	for pd := range ch {
 		percent := pcontext.ComputePercent(pd.Total, pd.Current)
 		log.Printf("progress: total: %v, current: %v, percent: %v%%", pd.Total, pd.Current, percent)
 	}
